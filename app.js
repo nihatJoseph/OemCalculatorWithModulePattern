@@ -1,6 +1,54 @@
 // STORAGE CONTROLLER MODULE
 
-const StorageController = (() => {})();
+const StorageController = (() => {
+  return {
+    storeProduct: (product) => {
+      let products;
+
+      if (localStorage.getItem("products") === null) {
+        products = [];
+        products.push(product);
+      } else {
+        products = JSON.parse(localStorage.getItem("products"));
+        products.push(product);
+      }
+      localStorage.setItem("products", JSON.stringify(products));
+    },
+    getProducts: () => {
+      let products;
+      if (localStorage.getItem("products") === null) {
+        products = [];
+      } else {
+        products = JSON.parse(localStorage.getItem("products"));
+      }
+      return products;
+    },
+    updateProduct: (product) => {
+      let products = JSON.parse(localStorage.getItem("products"));
+
+      products.forEach((prd, index) => {
+        if (product.id == prd.id) {
+          products.splice(index, 1, product);
+        }
+      });
+      localStorage.setItem("products", JSON.stringify(products));
+    },
+    deleteProduct: (id) => {
+      let products = JSON.parse(localStorage.getItem("products"));
+
+      products.forEach((prd, index) => {
+        if (id == prd.id) {
+          products.splice(index, 1);
+        }
+      });
+      localStorage.setItem("products", JSON.stringify(products));
+    },
+  };
+})();
+
+
+
+
 
 // PRODUCT CONTROLLER MODULE
 
@@ -12,7 +60,7 @@ const ProductController = (() => {
   };
 
   const data = {
-    products: [],
+    products: StorageController.getProducts(),
     selectedProduct: null,
     totalPrice: 0,
   };
@@ -66,6 +114,13 @@ const ProductController = (() => {
 
       return product;
     },
+    deleteProduct: (product) => {
+      data.products.forEach((prd, index) => {
+        if (prd.id == product.id) {
+          data.products.splice(index, 1);
+        }
+      });
+    },
     getTotal: () => {
       let total = 0;
 
@@ -77,6 +132,10 @@ const ProductController = (() => {
     },
   };
 })();
+
+
+
+
 
 // UI MODULE
 
@@ -172,6 +231,15 @@ const UIController = (() => {
       document.querySelector(Selectors.productPrice).value =
         selectedProduct.price;
     },
+    deleteProduct: () => {
+      let items = document.querySelectorAll(Selectors.productListItems);
+
+      items.forEach((item) => {
+        if (item.classList.contains("bg-warning")) {
+          item.remove();
+        }
+      });
+    },
     addingState: (item) => {
       UIController.clearWarnings();
       UIController.clearInputs();
@@ -190,9 +258,14 @@ const UIController = (() => {
   };
 })();
 
+
+
+
+
+
 // APP MODULE
 
-const App = ((ProductCtrl, UICtrl) => {
+const App = ((ProductCtrl, UICtrl, StorageCtrl) => {
   const UISelectors = UIController.getSelectors();
 
   const loadEventListeners = () => {
@@ -211,6 +284,10 @@ const App = ((ProductCtrl, UICtrl) => {
     document
       .querySelector(UISelectors.cancelButton)
       .addEventListener("click", cancelUpdate);
+
+    document
+      .querySelector(UISelectors.deleteButton)
+      .addEventListener("click", deleteProductSubmit);
   };
 
   const productAddSubmit = (e) => {
@@ -221,6 +298,8 @@ const App = ((ProductCtrl, UICtrl) => {
       const newProduct = ProductCtrl.addProduct(productName, productPrice);
 
       UIController.addProduct(newProduct);
+
+      StorageCtrl.storeProduct(newProduct);
 
       const total = ProductCtrl.getTotal();
 
@@ -241,6 +320,8 @@ const App = ((ProductCtrl, UICtrl) => {
       const product = ProductCtrl.getProductById(id);
 
       ProductCtrl.setCurrentProduct(product);
+
+      UICtrl.clearWarnings();
 
       UICtrl.addProductToForm();
 
@@ -266,6 +347,8 @@ const App = ((ProductCtrl, UICtrl) => {
 
       UICtrl.showTotal(total);
 
+      StorageCtrl.updateProduct(updatedProduct);
+
       UICtrl.addingState();
     }
 
@@ -275,6 +358,28 @@ const App = ((ProductCtrl, UICtrl) => {
   const cancelUpdate = (e) => {
     UICtrl.addingState();
     UICtrl.clearWarnings();
+
+    e.preventDefault();
+  };
+
+  const deleteProductSubmit = (e) => {
+    const selectedProduct = ProductCtrl.getCurrentProduct();
+
+    ProductCtrl.deleteProduct(selectedProduct);
+
+    UICtrl.deleteProduct();
+
+    const total = ProductCtrl.getTotal();
+
+    UICtrl.showTotal(total);
+
+    StorageCtrl.deleteProduct(selectedProduct.id);
+
+    UICtrl.addingState();
+
+    if (total == 0) {
+      UICtrl.hideCard();
+    }
 
     e.preventDefault();
   };
@@ -296,6 +401,6 @@ const App = ((ProductCtrl, UICtrl) => {
       loadEventListeners();
     },
   };
-})(ProductController, UIController);
+})(ProductController, UIController, StorageController);
 
 App.init();
